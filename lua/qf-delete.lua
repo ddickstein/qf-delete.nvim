@@ -4,6 +4,15 @@ local function errormsg(message)
   vim.api.nvim_echo({ { message, "ErrorMsg" } }, false, {})
 end
 
+local replace_action = "u"
+do
+  local vim_version = vim.version()
+  if vim_version.major == 0 and vim_version.minor < 11 then
+    replace_action = "r"
+  end
+end
+
+
 local function getqf_and_setqf()
   local getqf, setqf = vim.fn.getqflist, vim.fn.setqflist
   if vim.fn.getwininfo(vim.api.nvim_get_current_win())[1].loclist == 1 then
@@ -70,7 +79,7 @@ local function delete_qf_entries(filter)
   undo_stack.idx = undo_stack.idx + 1
   local cursor = vim.fn.getcurpos()
   table.remove(cursor, 1) -- Remove bufnr
-  setqf({}, "u", qf)
+  setqf({}, replace_action, qf)
   vim.fn.cursor(cursor)
 end
 
@@ -90,7 +99,7 @@ local function undo_or_redo(operation)
     errormsg("Nothing to redo.")
     return
   end
-  print("")
+  print(" ")
   if operation == "undo" then
     undo_stack.idx = undo_stack.idx - 1
   elseif operation == "redo" then
@@ -102,15 +111,17 @@ local function undo_or_redo(operation)
   local qf = undo_stack.stack[undo_stack.idx]
   local cursor = vim.fn.getcurpos()
   table.remove(cursor, 1) -- Remove bufnr
-  setqf({}, "u", qf)
+  setqf({}, replace_action, qf)
   vim.fn.cursor(cursor)
 end
 
 local function delete_qf_entries_in_range(start_row, end_row)
-  local function filter(index, _)
-    return index < start_row or index > end_row
-  end
-  delete_qf_entries(filter)
+  vim.schedule(function()
+    local function filter(index, _)
+      return index < start_row or index > end_row
+    end
+    delete_qf_entries(filter)
+  end)
 end
 
 function M.delete_qf_entries_opfunc(motionwise)
